@@ -4,10 +4,16 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
+
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
 var app = express();
+var http = require('http').Server(app);
+var io = require('socket.io')(http);
+
+var lights = [];
+var devices = []; 
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -36,6 +42,27 @@ app.use(function(err, req, res, next) {
   // render the error page
   res.status(err.status || 500);
   res.render('error');
+});
+
+io.on('connection', function(socket){
+  console.log('a user connected');
+  socket.on('disconnect', function(){
+    console.log('user disconnected');
+  });
+
+  socket.on('light', function() {
+  	console.log("-- idenfifies as light.");
+  	lights.push("socket");
+  })
+
+  socket.on('motion', function(msg){
+  	//lights[0].emit("blink","true");
+    console.log('message: ' + msg);
+  });
+});
+
+http.listen(3000, function(){
+  console.log('listening on *:3000');
 });
 
 module.exports = app;

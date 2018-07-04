@@ -5,10 +5,12 @@ const webpack = require('webpack');
 const ExtractTextPlugin = require("extract-text-webpack-plugin");
 const glob = require('glob');
 var   HtmlWebpackInlineSourcePlugin = require('html-webpack-inline-source-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 module.exports = {
 		entry: {
     	'main' : './index.js',
+    	'tablet' : './tablet.js',
   	}, 
   	output: {
    		path: path.resolve(__dirname, './dist'),
@@ -81,10 +83,21 @@ module.exports = {
 			chunks: ["main"]
 		}),
 		new HtmlWebpackInlineSourcePlugin(),
+		new HtmlWebpackPlugin({
+     		filename: './tablet.html',
+			template: './tablet.html',
+			inlineSource: '.(js|css)$', // embed all javascript and css inline
+			chunks: ["tablet"]
+		}),
+		new HtmlWebpackInlineSourcePlugin(),
 		new webpack.ProvidePlugin({
             $: "jquery",
             jQuery: "jquery"
-        })
+        }),
+        new CopyWebpackPlugin([
+		    { from: './manifest.json', to: 'manifest.json' }
+		  ],
+		  ),
     ],
 
 	node: {

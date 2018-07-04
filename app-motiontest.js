@@ -19,6 +19,7 @@ var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
 var motionInterval;
+var moving = false;
 
 var app = express();
 var http = require('http').Server(app);
@@ -43,20 +44,18 @@ app.use('/', indexRouter);
 app.use('/users', usersRouter);
 
 app.post("/color", function(req,res) {
-	console.log("GOT COLOR REQUEST");
-	console.log("-- " + req.body.color);
+  console.log("GOT COLOR REQUEST");
+  console.log("-- " + req.body.color);
 
-	//io.to("screens").emit("color", req.body.color, function(err) {
-	//	console.log("--sent color to screens");
-	//});
-	currentColor = convert.keyword.rgb(req.body.color);
+  //io.to("screens").emit("color", req.body.color, function(err) {
+  //  console.log("--sent color to screens");
+  //});
+  currentColor = convert.keyword.rgb(req.body.color);
 
-	console.log(currentColor)
+  io.to("screens").emit("color",convert.keyword.rgb(req.body.color));
+  io.to("lights").emit("color",convert.keyword.rgb(req.body.color));
 
-	io.to("screens").emit("color",convert.keyword.rgb(req.body.color));
-	io.to("lights").emit("color",convert.keyword.rgb(req.body.color));
-
-	res.sendStatus(200);
+  res.sendStatus(200);
 });
 
 // catch 404 and forward to error handler
@@ -97,54 +96,43 @@ io.on('connection', function(socket){
   });
 
   socket.on('light', function(msg) {
-  	console.log("-- idenfifies as light.");
-  	this.join("lights");
-  	this.emit("color",currentColor);
+    console.log("-- idenfifies as light.");
+    this.join("lights");
+    this.emit("color",currentColor);
 
-  	motionDetected();
+    setInterval(motionDetected, 70);
   });
 
   socket.on('screen', function(msg) {
-  	console.log("-- idenfifies as screen.");
-  	this.join("screens");
-  	this.emit("color",currentColor);
-  });
-
-  socket.on('color', function(msg) {
-  		
-
-  		newColor = [msg.r,msg.g,msg.b];
-  		//newColor = JSON.stringify(newColor);
-
-			console.log("got color: " + newColor);
-
-			currentColor = JSON.stringify(newColor).replace("[","").replace("]","");
-
-  		io.to("screens").emit("color",currentColor);
-			io.to("lights").emit("color",currentColor);
-  });
+    console.log("-- idenfifies as screen.");
+    this.join("screens");
+    this.emit("color",currentColor);
+  })
 
   socket.on('motion', function(msg){
-  	motionDetected();
+    motionDetected();
     console.log('received MOTION event from ' + this.client.conn.id);
     console.log('-- from room ' + JSON.stringify(this.rooms));
   });
-
-	
 });
 
 function motionDetected() {
-	clearTimeout(motionInterval);
-	motionInterval = setTimeout(endMotion, 700);
-	console.log("-- call motion detected");
+  clearTimeout(motionInterval);
+  motionInterval = setTimeout(endMotion, 500);
 
-	io.to("lights").emit("blink", "true");
-	resetMotionOSC();
+  if (!moving) {
+    io.to("lights").emit("blink", "true");
+    console.log("send motion true event");
+  }
+
+  moving = true;
+  resetMotionOSC();
 }
 
 function endMotion() {
-	console.log("-- call end motion");
-	io.to("lights").emit("blink", "false");
+  moving = false;
+  console.log("-- call end motion");
+  io.to("lights").emit("blink", "false");
 }
 
 http.listen(3000, function(){
@@ -156,7 +144,7 @@ var bigger = true;
 setInterval(sendMotionOSC, 70);
 function sendMotionOSC() {
   if (intensityVal > 0.25) {
-  	bigger = true;
+    bigger = true;
     udpPort.send({
         address: "/intensity",
         args: [
@@ -168,16 +156,16 @@ function sendMotionOSC() {
     });
     intensityVal = intensityVal - 0.03;
   } else {
-  	
-  	if (bigger) console.log("-- motion OSC envelope ended, stop sending");
-  	bigger = false;
+    
+    if (bigger) console.log("-- motion OSC envelope ended, stop sending");
+    bigger = false;
   }
   
 };
 
 function resetMotionOSC() {
-	console.log("-- reset motion OSC");
-	console.log("-- start motion OSC envelope... sending");
+  console.log("-- reset motion OSC");
+  console.log("-- start motion OSC envelope... sending");
   intensityVal = 0.75;
 }
 
